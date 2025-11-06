@@ -6,13 +6,19 @@ on:
 jobs:
   create-milestones:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Create milestones for ApartAlert project
-        uses: devops-infra/action-milestone@v0.5.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          milestones: |
-            Sprint 1 - Osnovna struktura in uporabniški sistem | 2025-11-10 | 2025-11-24
-            Sprint 2 - Iskanje in prikaz rezultatov | 2025-11-25 | 2025-12-09
-            Sprint 3 - Obvestila, sortiranje in favoriti | 2025-12-10 | 2025-12-24
-            Sprint 4 - Napredne funkcije in administracija | 2025-12-25 | 2026-01-10
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        uses: cli/cli-action@v2
+
+      - name: Create milestones
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/milestones -f title="Sprint 1 - Osnovna struktura in uporabniški sistem" -f state=open -f description="Vzpostavitev osnovne arhitekture in uporabniškega sistema." -f due_on="2025-11-24T00:00:00Z"
+          gh api repos/${{ github.repository }}/milestones -f title="Sprint 2 - Iskanje in prikaz rezultatov" -f state=open -f description="Ustvarjanje in prikaz rezultatov." -f due_on="2025-12-09T00:00:00Z"
+          gh api repos/${{ github.repository }}/milestones -f title="Sprint 3 - Obvestila, sortiranje in favoriti" -f state=open -f description="Implementacija obvestil in personalizacije uporabnika." -f due_on="2025-12-24T00:00:00Z"
+          gh api repos/${{ github.repository }}/milestones -f title="Sprint 4 - Napredne funkcije in administracija" -f state=open -f description="Dodajanje naprednih funkcionalnosti in administracije." -f due_on="2026-01-10T00:00:00Z"
