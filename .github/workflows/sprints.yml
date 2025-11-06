@@ -16,17 +16,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Authenticate GitHub CLI
+      - name: Create milestones
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Create milestones
         run: |
           gh api repos/${{ github.repository }}/milestones -f title="Sprint 1 - Osnovna struktura in uporabniški sistem" -f state=open -f description="Vzpostavitev osnovne arhitekture in uporabniškega sistema." -f due_on="2025-11-24T00:00:00Z"
           gh api repos/${{ github.repository }}/milestones -f title="Sprint 2 - Iskanje in prikaz rezultatov" -f state=open -f description="Ustvarjanje in prikaz rezultatov." -f due_on="2025-12-09T00:00:00Z"
           gh api repos/${{ github.repository }}/milestones -f title="Sprint 3 - Obvestila, sortiranje in favoriti" -f state=open -f description="Implementacija obvestil in personalizacije uporabnika." -f due_on="2025-12-24T00:00:00Z"
           gh api repos/${{ github.repository }}/milestones -f title="Sprint 4 - Napredne funkcije in administracija" -f state=open -f description="Dodajanje naprednih funkcionalnosti in administracije." -f due_on="2026-01-10T00:00:00Z"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
