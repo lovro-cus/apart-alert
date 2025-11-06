@@ -1,0 +1,18 @@
+name: Create Sprint Milestones
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-milestones:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create milestones for ApartAlert project
+        uses: devops-infra/action-milestone@v0.5.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          milestones: |
+            Sprint 1 - Osnovna struktura in uporabniški sistem | 2025-11-10 | 2025-11-24
+            Sprint 2 - Iskanje in prikaz rezultatov | 2025-11-25 | 2025-12-09
+            Sprint 3 - Obvestila, sortiranje in favoriti | 2025-12-10 | 2025-12-24
+            Sprint 4 - Napredne funkcije in administracija | 2025-12-25 | 2026-01-10
