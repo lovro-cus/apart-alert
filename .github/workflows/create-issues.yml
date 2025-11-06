@@ -1,0 +1,39 @@
+name: Create Sprint Issues
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Create Sprint Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN_1 }}
+        run: |
+          # Sprint 1
+          gh issue create --repo ${{ github.repository }} --title "Implementacija registracije in prijave" --body "Osnovna avtentikacija uporabnikov (JWT, validacija)." --milestone "Sprint 1 - Osnovna struktura in uporabniški sistem"
+          gh issue create --repo ${{ github.repository }} --title "Postavitev baze podatkov (Supabase/PostgreSQL)" --body "Nastavi strukturo tabele users in poveži z backendom." --milestone "Sprint 1 - Osnovna struktura in uporabniški sistem"
+          gh issue create --repo ${{ github.repository }} --title "Frontend prijavni vmesnik" --body "Izdelaj osnovni UI za prijavo in registracijo." --milestone "Sprint 1 - Osnovna struktura in uporabniški sistem"
+          gh issue create --repo ${{ github.repository }} --title "Povezava frontenda z backend API-jem" --body "Implementiraj API klice za prijavo, registracijo in preverjanje JWT." --milestone "Sprint 1 - Osnovna struktura in uporabniški sistem"
+
+          # Sprint 2
+          gh issue create --repo ${{ github.repository }} --title "Implementacija iskalnika apartmajev" --body "Uporabniški obrazec za filtre (lokacija, datumi, cena, osebe)." --milestone "Sprint 2 - Iskanje in prikaz rezultatov"
+          gh issue create --repo ${{ github.repository }} --title "Prikaz rezultatov iskanja" --body "Seznam apartmajev z osnovnimi podatki in slikami." --milestone "Sprint 2 - Iskanje in prikaz rezultatov"
+          gh issue create --repo ${{ github.repository }} --title "Paginacija ali neskončno drsenje" --body "Dodaj neskončno nalaganje rezultatov." --milestone "Sprint 2 - Iskanje in prikaz rezultatov"
+
+          # Sprint 3
+          gh issue create --repo ${{ github.repository }} --title "Implementacija sortiranja rezultatov" --body "Sortiranje po ceni, oceni in razdalji." --milestone "Sprint 3 - Obvestila, sortiranje in favoriti"
+          gh issue create --repo ${{ github.repository }} --title "Dodajanje favoritov" --body "Shranjevanje priljubljenih apartmajev v uporabnikov profil." --milestone "Sprint 3 - Obvestila, sortiranje in favoriti"
+          gh issue create --repo ${{ github.repository }} --title "Email obvestila" --body "Pošiljanje email obvestil ob novih ujemanjih." --milestone "Sprint 3 - Obvestila, sortiranje in favoriti"
+
+          # Sprint 4
+          gh issue create --repo ${{ github.repository }} --title "Admin dashboard" --body "Prikaz metrik, obvestil in napak v sistemu." --milestone "Sprint 4 - Napredne funkcije in administracija"
+          gh issue create --repo ${{ github.repository }} --title "Push obvestila v brskalniku" --body "Dodaj brskalniška potisna obvestila." --milestone "Sprint 4 - Napredne funkcije in administracija"
+          gh issue create --repo ${{ github.repository }} --title "Varnostne nastavitve profila" --body "Uporabnik lahko spremeni geslo ali izbriše račun." --milestone "Sprint 4 - Napredne funkcije in administracija"
