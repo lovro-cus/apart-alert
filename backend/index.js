@@ -30,3 +30,29 @@ app.post("/login", async (req, res) => {
 app.listen(process.env.PORT, () =>
   console.log(`✅ Backend teče na http://localhost:${process.env.PORT}`)
 );
+
+// 🟢 Iskanje apartmajev (simulirani podatki)
+app.get("/search", async (req, res) => {
+  const { location, minPrice, maxPrice } = req.query;
+
+  // Simulirani podatki
+  const apartments = [
+    { id: 1, name: "Apartma Center", location: "Maribor", price: 75 },
+    { id: 2, name: "Apartma Pohorje", location: "Maribor", price: 90 },
+    { id: 3, name: "Apartment Ljubljana View", location: "Ljubljana", price: 110 },
+    { id: 4, name: "Sea Breeze", location: "Piran", price: 150 },
+  ];
+
+  // Filtriraj glede na poizvedbo
+  let results = apartments;
+  if (location) {
+    results = results.filter(a =>
+      a.location.toLowerCase().includes(location.toLowerCase())
+    );
+  }
+  if (minPrice) results = results.filter(a => a.price >= parseInt(minPrice));
+  if (maxPrice) results = results.filter(a => a.price <= parseInt(maxPrice));
+
+  res.json({ results });
+});
+
