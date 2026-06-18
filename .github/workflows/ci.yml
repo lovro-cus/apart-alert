@@ -2,11 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, production]
   pull_request:
-    branches: [main]
+    branches: [main, pre-production, production]
+
+# OPTIMIZACIJA (vaja 7): prekliči predhodne tekoče zagone iste veje,
+# da ne tratimo virov in pohitrimo povratno informacijo.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # =============================================================
+  # TESTIRANJE (vaja 3)
+  # =============================================================
   backend-tests:
     name: Backend testi
     runs-on: ubuntu-latest
@@ -67,9 +76,9 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage
 
-  # -------------------------------------------------------------
-  # GRADNJA aplikacije (po uspešnih testih)
-  # -------------------------------------------------------------
+  # =============================================================
+  # GRADNJA aplikacije (vaja 4)
+  # =============================================================
   build:
     name: Gradnja
     runs-on: ubuntu-latest
@@ -101,18 +110,160 @@ jobs:
           name: frontend-dist
           path: frontend/dist
 
-  # -------------------------------------------------------------
-  # DOCKER: gradnja in nalaganje slik na Docker Hub
-  # (samo ob push na main)
-  # -------------------------------------------------------------
-  docker:
-    name: Docker build & push
+  # =============================================================
+  # SONARCLOUD analiza + quality gate (vaja 6)
+  # =============================================================
+  sonarcloud:
+    name: SonarCloud analiza
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend-tests, frontend-tests]
     steps:
       - name: Checkout kode
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preveri SONAR_TOKEN
+        id: check
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SONAR_TOKEN ni nastavljen – preskakujem SonarCloud analizo."
+          fi
+
+      - name: Nastavi Node.js
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Pokritost (backend)
+        if: steps.check.outputs.enabled == 'true'
+        working-directory: backend
+        run: npm ci && npm run coverage
+
+      - name: Pokritost (frontend)
+        if: steps.check.outputs.enabled == 'true'
+        working-directory: frontend
+        run: npm ci && npm run coverage
+
+      - name: SonarCloud skeniranje
+        if: steps.check.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Preverjanje quality gate
+        if: steps.check.outputs.enabled == 'true'
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # =============================================================
+  # SNYK varnostni pregled (vaja 7)
+  # =============================================================
+  snyk:
+    name: Snyk varnostni pregled
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Preveri SNYK_TOKEN
+        id: check
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SNYK_TOKEN ni nastavljen – preskakujem Snyk pregled."
+          fi
+
+      - name: Snyk – odvisnosti (backend)
+        if: steps.check.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --file=backend/package.json
+
+      - name: Zgradi backend sliko za pregled
+        if: steps.check.outputs.enabled == 'true'
+        run: docker build -t apart-alert-backend:scan ./backend
+
+      - name: Snyk – Docker slika (Dockerfile)
+        if: steps.check.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: apart-alert-backend:scan
+          args: --file=backend/Dockerfile
+
+  # =============================================================
+  # GITHUB PAGES – statična predstavitvena stran (vaja 5)
+  # =============================================================
+  pages:
+    name: Deploy na GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Konfiguriraj Pages
+        uses: actions/configure-pages@v5
+
+      - name: Naloži vsebino (docs)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy na Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # =============================================================
+  # DELIVERY – Docker slike + deploy glede na okolje (vaji 4 in 5)
+  #   main       -> okolje "development", oznaka :dev
+  #   production -> okolje "production",  oznaka :prod (ročna odobritev)
+  # =============================================================
+  deliver:
+    name: Docker push & deploy
+    runs-on: ubuntu-latest
+    needs: [build, sonarcloud]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
+    environment:
+      name: ${{ github.ref == 'refs/heads/production' && 'production' || 'development' }}
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Določi okolje in oznako
+        id: meta
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/production" ]; then
+            echo "tag=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Nastavi Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -129,7 +280,7 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/apart-alert-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/apart-alert-backend:${{ steps.meta.outputs.tag }}
             ${{ secrets.DOCKER_USERNAME }}/apart-alert-backend:${{ github.sha }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
@@ -142,21 +293,12 @@ jobs:
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL }}
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/apart-alert-frontend:latest
+            ${{ secrets.DOCKER_USERNAME }}/apart-alert-frontend:${{ steps.meta.outputs.tag }}
             ${{ secrets.DOCKER_USERNAME }}/apart-alert-frontend:${{ github.sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
-  # -------------------------------------------------------------
-  # DEPLOY na Render (sproži redeploy prek deploy hookov)
-  # -------------------------------------------------------------
-  deploy:
-    name: Deploy na Render
-    runs-on: ubuntu-latest
-    needs: docker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Sproži deploy backenda
+      - name: Sproži deploy backenda (Render)
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
         run: |
@@ -166,7 +308,7 @@ jobs:
           fi
           curl -fsSL -X POST "$HOOK"
 
-      - name: Sproži deploy frontenda
+      - name: Sproži deploy frontenda (Render)
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
         run: |

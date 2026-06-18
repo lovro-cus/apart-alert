@@ -38,3 +38,15 @@ export function sortApartments(apartments, field, order = "asc") {
     order === "asc" ? a[field] - b[field] : b[field] - a[field]
   );
 }
+
+/**
+ * Vrne apartma z danim id-jem ali null, če ne obstaja.
+ * @param {Array} apartments
+ * @param {number|string} id
+ * @returns {object|null}
+ */
+export function getApartmentById(apartments, id) {
+  const targetId = Number(id);
+  if (Number.isNaN(targetId)) return null;
+  return apartments.find((a) => a.id === targetId) || null;
+}

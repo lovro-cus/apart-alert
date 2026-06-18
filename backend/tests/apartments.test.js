@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterApartments, sortApartments } from "../lib/apartments.js";
+import { filterApartments, sortApartments, getApartmentById } from "../lib/apartments.js";
 
 const sample = [
   { id: 1, name: "A", location: "Maribor", price: 75, rating: 4.6, distance: 250 },
@@ -65,5 +65,23 @@ describe("sortApartments", () => {
     const copy = [...sample];
     sortApartments(sample, "price", "asc");
     expect(sample).toEqual(copy);
+  });
+});
+
+describe("getApartmentById", () => {
+  it("vrne apartma z ujemajočim id-jem", () => {
+    expect(getApartmentById(sample, 2).name).toBe("B");
+  });
+
+  it("sprejme id kot niz", () => {
+    expect(getApartmentById(sample, "3").id).toBe(3);
+  });
+
+  it("vrne null za neobstoječ id", () => {
+    expect(getApartmentById(sample, 999)).toBeNull();
+  });
+
+  it("vrne null za neveljaven (ne-številski) id", () => {
+    expect(getApartmentById(sample, "abc")).toBeNull();
   });
 });

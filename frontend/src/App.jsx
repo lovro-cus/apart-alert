@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import AdminDashboard from "./AdminDashboard";
+import ApartmentDetails from "./ApartmentDetails";
 import { sortApartments, isAdminEmail } from "./lib/apartments";
 import { validatePasswordChange } from "./lib/validation";
 import { API_URL } from "./lib/config";
@@ -15,6 +16,7 @@ export default function App() {
   const [search, setSearch] = useState({ location: "", minPrice: "", maxPrice: "" });
   const [results, setResults] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [selectedApartment, setSelectedApartment] = useState(null);
 
   const [alert, setAlert] = useState("");
   const [fadeIn, setFadeIn] = useState(false);
@@ -68,6 +70,17 @@ export default function App() {
     e.preventDefault();
     const res = await axios.get(`${API_URL}/search`, { params: search });
     setResults(res.data.results);
+  };
+
+  // DETAILS – pridobi podrobnosti enega apartmaja
+  const showDetails = async (id) => {
+    try {
+      const res = await axios.get(`${API_URL}/apartments/${id}`);
+      setSelectedApartment(res.data.apartment);
+    } catch {
+      setAlert("Napaka pri nalaganju podrobnosti.");
+      setTimeout(() => setAlert(""), 1500);
+    }
   };
 
   // SORTING
@@ -262,6 +275,11 @@ const handleDeleteAccount = async () => {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
+          <ApartmentDetails
+            apartment={selectedApartment}
+            onClose={() => setSelectedApartment(null)}
+          />
+
           <h2 style={{ textAlign: "center", marginBottom: 25 }}>
             {mode === "search" ? "Iskanje apartmajev" : "Moji priljubljeni"}
           </h2>
@@ -389,6 +407,21 @@ const handleDeleteAccount = async () => {
                     <div style={{ color: "#007bff" }}>{r.price} € / noč</div>
                     <div>Ocena: {r.rating} ★</div>
                     <div>Razdalja: {r.distance} m</div>
+                    <button
+                      onClick={() => showDetails(r.id)}
+                      style={{
+                        marginTop: 6,
+                        padding: "4px 10px",
+                        background: "#007bff",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      Podrobnosti
+                    </button>
                   </div>
 
                   {token && (
