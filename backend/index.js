@@ -2,7 +2,12 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { fileURLToPath } from "url";
 import { apartments } from "./apartments.js";
+import { filterApartments } from "./lib/apartments.js";
+import { countEvents, topLocations, topFavorites } from "./lib/metrics.js";
+import { analyticsPerLocation } from "./lib/alerts.js";
+import { isAdmin } from "./lib/auth.js";
 
 dotenv.config();
 const app = express();
@@ -24,7 +29,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // -----------------------------------------------
 function requireAdmin(req, res, next) {
   const userEmail = req.headers["x-admin-email"];
-  if (userEmail !== ADMIN_EMAIL) {
+  if (!isAdmin(userEmail, ADMIN_EMAIL)) {
     return res.status(403).json({ error: "Dostop zavrnjen" });
   }
   return next();
@@ -39,21 +44,8 @@ app.get("/admin/overview", requireAdmin, async (req, res) => {
     .select("*")
     .order("created_at", { ascending: false });
 
-  const logins = metrics.filter(x => x.event_type === "login").length;
-  const registers = metrics.filter(x => x.event_type === "register").length;
-  const searches = metrics.filter(x => x.event_type === "search");
-
-  const topLocations = {};
-  searches.forEach(s => {
-    const loc = s.event_data.location?.toLowerCase();
-    if (!loc) return;
-    if (!topLocations[loc]) topLocations[loc] = 0;
-    topLocations[loc]++;
-  });
-
-  const sortedLocations = Object.entries(topLocations)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const { logins, registers, searches } = countEvents(metrics);
+  const sortedLocations = topLocations(searches, 5);
 
   res.json({
     logins,
@@ -90,19 +82,7 @@ app.get("/admin/users", requireAdmin, async (req, res) => {
 app.get("/admin/favorites", requireAdmin, async (req, res) => {
   const { data } = await supabase.from("favorites").select("*");
 
-  const countPerApartment = {};
-  data.forEach(f => {
-    if (!countPerApartment[f.apartment_id]) countPerApartment[f.apartment_id] = 0;
-    countPerApartment[f.apartment_id]++;
-  });
-
-  const top = Object.entries(countPerApartment)
-    .sort((a, b) => b[1] - a[1])
-    .map(([id, count]) => ({
-      apartmentId: Number(id),
-      count,
-    }))
-    .slice(0, 10);
+  const top = topFavorites(data, 10);
 
   res.json({ top });
 });
@@ -113,11 +93,7 @@ app.get("/admin/favorites", requireAdmin, async (req, res) => {
 app.get("/admin/alerts", requireAdmin, async (req, res) => {
   const { data } = await supabase.from("alerts").select("*");
 
-  const perLocation = {};
-  data.forEach(a => {
-    if (!perLocation[a.location]) perLocation[a.location] = 0;
-    perLocation[a.location]++;
-  });
+  const perLocation = analyticsPerLocation(data);
 
   res.json({
     alerts: data,
@@ -194,16 +170,7 @@ app.get("/search", async (req, res) => {
       event_data: { location, minPrice, maxPrice },
     });
 
-    let results = apartments;
-
-    if (location) {
-      results = results.filter(a =>
-        a.location.toLowerCase().includes(location.toLowerCase())
-      );
-    }
-
-    if (minPrice) results = results.filter(a => a.price >= parseInt(minPrice));
-    if (maxPrice) results = results.filter(a => a.price <= parseInt(maxPrice));
+    const results = filterApartments(apartments, { location, minPrice, maxPrice });
 
     return res.json({ results });
 
@@ -312,7 +279,6 @@ app.post("/change-password", async (req, res) => {
     }
     const userId = data.user.id;
 
-    console.log(user.user.id + " \n " + user.user.userEmail)
     // sprememba gesla preko admin API (ker si na serverju)
     const { error: updErr } = await supabase.auth.admin.updateUserById(userId, {
       password: newPassword,
@@ -388,6 +354,12 @@ app.post("/delete-account", async (req, res) => {
 
 
 // -----------------------------------------------
-app.listen(5000, () =>
-  console.log("Backend running at http://localhost:5000")
-);
+// Zaženi strežnik le, kadar je datoteka pognana direktno (ne pri uvozu v teste).
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMain) {
+  app.listen(5000, () =>
+    console.log("Backend running at http://localhost:5000")
+  );
+}
+
+export default app;

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { apartments } from "./apartments.js";
+import { findMatches } from "./lib/alerts.js";
 import nodemailer from "nodemailer";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -17,13 +18,7 @@ async function checkAlerts() {
   const { data: alerts } = await supabase.from("alerts").select("*");
 
   for (const alert of alerts) {
-    const matches = apartments.filter(a => {
-      return (
-        a.location.toLowerCase().includes(alert.location.toLowerCase()) &&
-        a.price >= alert.min_price &&
-        a.price <= alert.max_price
-      );
-    });
+    const matches = findMatches(apartments, alert);
 
     if (matches.length === 0) continue;
 

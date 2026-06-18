@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import AdminDashboard from "./AdminDashboard";
-
-const API_URL = "http://localhost:5000";
+import { sortApartments, isAdminEmail } from "./lib/apartments";
+import { validatePasswordChange } from "./lib/validation";
+import { API_URL } from "./lib/config";
 
 export default function App() {
   const [mode, setMode] = useState("login");
@@ -39,7 +40,7 @@ export default function App() {
       const res = await axios.post(`${API_URL}${endpoint}`, { email, password });
       setMessage(res.data.message);
 
-      if (email == "culjo41@gmail.com") {
+      if (isAdminEmail(email)) {
         setToken(res.data.token)
         setMode("admin")
       }
@@ -72,10 +73,7 @@ export default function App() {
   // SORTING
   const handleSort = (field) => {
     setSortBy(field);
-    const sorted = [...results].sort((a, b) =>
-      sortOrder === "asc" ? a[field] - b[field] : b[field] - a[field]
-    );
-    setResults(sorted);
+    setResults(sortApartments(results, field, sortOrder));
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
@@ -101,8 +99,9 @@ export default function App() {
     setMessage("Najprej se prijavi.");
     return;
   }
-  if (!newPassword || newPassword !== confirmPassword) {
-    setMessage("Gesli se ne ujemata ali sta prazni.");
+  const validation = validatePasswordChange(newPassword, confirmPassword);
+  if (!validation.ok) {
+    setMessage(validation.error);
     return;
   }
 
