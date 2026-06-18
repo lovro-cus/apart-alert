@@ -1,0 +1,40 @@
+name: CodeQL
+
+# GitHub Code Scanning (vaja 7) – statična varnostna analiza kode.
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Tedenski pregled (ponedeljek ob 6:00 UTC).
+    - cron: "0 6 * * 1"
+
+jobs:
+  analyze:
+    name: CodeQL analiza
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Inicializacija CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Samodejna gradnja
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Izvedi analizo
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
