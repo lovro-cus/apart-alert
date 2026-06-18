@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Najprej samo manifest, da izkoristimo Docker layer cache za odvisnosti.
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Nato izvorna koda.
 COPY . .
