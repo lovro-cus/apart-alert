@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { fileURLToPath } from "url";
 import { apartments } from "./apartments.js";
-import { filterApartments } from "./lib/apartments.js";
+import { filterApartments, getApartmentById } from "./lib/apartments.js";
 import { countEvents, topLocations, topFavorites } from "./lib/metrics.js";
 import { analyticsPerLocation } from "./lib/alerts.js";
 import { isAdmin } from "./lib/auth.js";
@@ -185,6 +185,17 @@ app.get("/search", async (req, res) => {
 
     return res.status(500).json({ error: "Napaka pri iskanju" });
   }
+});
+
+// -----------------------------------------------
+// APARTMENT DETAILS (podrobnosti enega apartmaja)
+// -----------------------------------------------
+app.get("/apartments/:id", (req, res) => {
+  const apartment = getApartmentById(apartments, req.params.id);
+  if (!apartment) {
+    return res.status(404).json({ error: "Apartma ne obstaja" });
+  }
+  res.json({ apartment });
 });
 
 // -----------------------------------------------

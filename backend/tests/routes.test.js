@@ -44,6 +44,21 @@ describe("GET /search", () => {
   });
 });
 
+describe("GET /apartments/:id", () => {
+  it("vrne podrobnosti obstoječega apartmaja", async () => {
+    const res = await request(app).get("/apartments/8");
+    expect(res.status).toBe(200);
+    expect(res.body.apartment.id).toBe(8);
+    expect(res.body.apartment.name).toBe("Ljubljana Riverside Loft");
+  });
+
+  it("vrne 404 za neobstoječ apartma", async () => {
+    const res = await request(app).get("/apartments/9999");
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("Apartma ne obstaja");
+  });
+});
+
 describe("requireAdmin middleware", () => {
   it("zavrne dostop brez admin glave (403)", async () => {
     const res = await request(app).get("/admin/overview");
